@@ -1,8 +1,9 @@
+from decimal import Decimal
 from pathlib import Path
 
 from django.test import SimpleTestCase
 
-from readings.services.parser import parse_d0010
+from readings.services.parser import convert_group_readings, parse_d0010
 
 
 class ParseD0010Tests(SimpleTestCase):
@@ -69,3 +70,14 @@ class ParseD0010Tests(SimpleTestCase):
 
             with self.assertRaises(ValueError):
                 parse_d0010(file_path)
+
+    def test_converts_group_into_reading_objects(self):
+        result = parse_d0010(self.file_path)
+        group = result.mpan_groups[0]
+
+        readings = convert_group_readings(group)
+
+        self.assertEqual(readings[0].mpan, "1200023305967")
+        self.assertEqual(readings[0].meter_serial_number, "F75A 00802")
+        self.assertEqual(readings[0].register_id, "S")
+        self.assertEqual(readings[0].reading_value, Decimal("56311.0"))

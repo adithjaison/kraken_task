@@ -13,6 +13,27 @@ class ReadingRecord:
     reading_value: Decimal
 
 
+@dataclass
+class MpanGroup:
+    mpan: str
+    meter_record: list[str] | None = None
+    reading_records: list[list[str]] | None = None
+    readings: list[ReadingRecord] | None = None
+
+    def __post_init__(self):
+        if self.reading_records is None:
+            self.reading_records = []
+        if self.readings is None:
+            self.readings = []
+
+
+@dataclass
+class D0010File:
+    header: list[str]
+    trailer: list[str]
+    mpan_groups: list[MpanGroup]
+
+
 def parse_reading(record: dict):
 
     try:
@@ -29,24 +50,6 @@ def parse_reading(record: dict):
         )
     except (KeyError, ValueError, InvalidOperation) as exc:
         raise ValueError(f"Invalid reading record: {exc}") from exc
-
-
-@dataclass
-class MpanGroup:
-    mpan: str
-    meter_record: list[str] | None = None
-    reading_records: list[list[str]] | None = None
-
-    def __post_init__(self):
-        if self.reading_records is None:
-            self.reading_records = []
-
-
-@dataclass
-class D0010File:
-    header: list[str]
-    trailer: list[str]
-    mpan_groups: list[MpanGroup]
 
 
 def parse_d0010(path):
@@ -93,3 +96,26 @@ def parse_d0010(path):
         trailer=trailer,
         mpan_groups=mpan_groups,
     )
+
+
+def convert_group_readings(group: MpanGroup) -> list[ReadingRecord]:
+    if group.meter_record is None:
+        raise ValueError(f"Missing meter record for MPAN {group.mpan}")
+
+    meter_serial_number = group.meter_record[1]
+    reading_type = group.meter_record[2]
+    readings = []
+
+    for record in group.reading_records:
+        readings.append(
+            ReadingRecord(
+                mpan=group.mpan,
+                meter_serial_number=meter_serial_number,
+                register_id=record[1],
+                reading_date=datetime.strptime(record[2], "%Y%m%d%H%M%S"),
+                reading_type=reading_type,
+                reading_value=Decimal(record[3]),
+            )
+        )
+
+    return readings
