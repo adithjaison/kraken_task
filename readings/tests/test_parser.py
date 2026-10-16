@@ -13,7 +13,7 @@ class ParseReadingTests(SimpleTestCase):
             "mpan": "1234567890123",
             "meter_serial_number": "METER123",
             "register_id": "1",
-            "reading_date": "2026-10-15 10:30:00",
+            "reading_date": "20160222000000",
             "reading_type": "A",
             "reading_value": "12345.678",
         }
@@ -24,7 +24,7 @@ class ParseReadingTests(SimpleTestCase):
         self.assertEqual(result.register_id, "1")
         self.assertEqual(
             result.reading_date,
-            datetime(2026, 10, 15, 10, 30),
+            datetime(2016, 2, 22, 0, 0),
         )
         self.assertEqual(result.reading_type, "A")
         self.assertEqual(result.reading_value, Decimal("12345.678"))

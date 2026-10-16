@@ -21,8 +21,8 @@ def parse_reading(record: dict):
             meter_serial_number=record["meter_serial_number"].strip(),
             register_id=record["register_id"].strip(),
             reading_date=datetime.strptime(
-                record["reading_date"],
-                "%Y-%m-%d %H:%M:%S",
+                record["reading_date"].strip(),
+                "%Y%m%d%H%M%S",
             ),
             reading_type=record["reading_type"].strip(),
             reading_value=Decimal(record["reading_value"].strip()),
