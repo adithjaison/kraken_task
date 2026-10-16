@@ -90,7 +90,8 @@ def parse_d0010(path):
             raise ValueError(f"Missing meter record for MPAN {group.mpan}")
         if not group.reading_records:
             raise ValueError(f"Missing readings for MPAN {group.mpan}")
-
+    for group in mpan_groups:
+        group.readings = convert_group_readings(group)
     return D0010File(
         header=header,
         trailer=trailer,
