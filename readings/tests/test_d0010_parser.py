@@ -35,3 +35,37 @@ class ParseD0010Tests(SimpleTestCase):
         self.assertEqual(len(group.reading_records), 2)
         self.assertEqual(group.reading_records[0][1], "01")
         self.assertEqual(group.reading_records[1][1], "02")
+
+    def test_rejects_file_without_header(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmp_dir:
+            file_path = Path(tmp_dir) / "invalid.uff"
+            file_path.write_text(
+                "026|1200023305967|V|\n"
+                "028|F75A 00802|D|\n"
+                "030|S|20160222000000|56311.0|||T|N|\n"
+                "ZPT|0000475656|35||11|20160302154650|\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaises(ValueError):
+                parse_d0010(file_path)
+
+    def test_rejects_file_without_trailer(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmp_dir:
+            file_path = Path(tmp_dir) / "invalid.uff"
+            file_path.write_text(
+                "ZHV|0000475656|D0010002|D|UDMS|X|MRCY|20160302153151||||OPER|\n"
+                "026|1200023305967|V|\n"
+                "028|F75A 00802|D|\n"
+                "030|S|20160222000000|56311.0|||T|N|\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaises(ValueError):
+                parse_d0010(file_path)
