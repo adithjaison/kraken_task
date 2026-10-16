@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timezone as dt_timezone
 from decimal import Decimal
 
 from django.test import SimpleTestCase
@@ -22,9 +23,10 @@ class ParseReadingTests(SimpleTestCase):
         self.assertEqual(result.mpan, "1234567890123")
         self.assertEqual(result.meter_serial_number, "METER123")
         self.assertEqual(result.register_id, "1")
+
         self.assertEqual(
             result.reading_date,
-            datetime(2016, 2, 22, 0, 0),
+            datetime(2016, 2, 22, 0, 0, tzinfo=dt_timezone.utc),
         )
         self.assertEqual(result.reading_type, "A")
         self.assertEqual(result.reading_value, Decimal("12345.678"))

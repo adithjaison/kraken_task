@@ -40,3 +40,10 @@ class ImportD0010CommandTests(TestCase):
 
         with self.assertRaises(CommandError):
             call_command("import_d0010", str(missing_file))
+
+    def test_importing_same_file_twice_does_not_duplicate_readings(self):
+        call_command("import_d0010", str(self.sample_file))
+        self.assertEqual(Reading.objects.count(), 13)
+
+        call_command("import_d0010", str(self.sample_file))
+        self.assertEqual(Reading.objects.count(), 13)

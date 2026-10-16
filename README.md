@@ -1,64 +1,63 @@
-# D0010 Meter Reading Importer
+# Kraken Meter Reading Importer
 
-A Django application that parses D0010 electricity meter-reading files, stores reading records in a database, and makes them searchable through Django Admin.
+**Author:** Adith Jaison
 
-## Features
+## Getting Started
 
-- Parse pipe-delimited D0010 files.
-- Group meter readings by MPAN.
-- Extract MPAN, meter serial number, register ID, reading date, reading type, and reading value.
-- Import readings using a Django management command.
-- Prevent duplicate readings from the same source file using a database uniqueness constraint.
-- Search readings by MPAN or meter serial number in Django Admin.
-- Store the source filename for traceability.
-- Include automated tests for parsing and importing.
-
-## Requirements
+### Requirements
 
 - Python 3.10 or later
-- Django
-- SQLite (configured by default)
+- pip
 
-## Setup
+### 1. Extract the submission
 
-Clone the repository and navigate to the project directory.
-
-Create and activate a virtual environment:
+Extract the submitted tarball and enter the project directory:
 
 ```bash
-python3 -m venv krakenv
-source krakenv/bin/activate
+tar -xzf Adith_Jaison_Kraken_Task.tar.gz
+cd kraken_task
 ```
 
-Install the project's dependencies:
+The directory name may differ depending on the submitted archive.
+
+### 2. Create and activate a virtual environment
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Apply database migrations:
+### 4. Set up the database
 
 ```bash
 python manage.py migrate
 ```
 
-## Import D0010 files
-
-Import a single file:
+### 5. Run the checks and tests
 
 ```bash
-python manage.py import_d0010 path/to/readings.uff
+python manage.py check
+python manage.py test
 ```
 
-Import multiple files:
+### 6. Import the sample file
+
+From the project root, run:
 
 ```bash
-python manage.py import_d0010 path/to/first.uff path/to/second.uff
+python manage.py import_d0010 readings/tests/sample_data/sample_d0010.uff
 ```
 
-The command reports how many new readings were imported. Re-importing an identical file should not create duplicate database records.
+On a clean database, the supplied sample file is expected to import 13 readings.
 
-## Django Admin
+### 7. Access Django Admin
 
 Create an administrator account:
 
@@ -72,26 +71,25 @@ Start the development server:
 python manage.py runserver
 ```
 
-Open http://127.0.0.1:8000/admin/ and sign in.
+Open http://127.0.0.1:8000/admin/ and sign in with the superuser credentials.
 
-Readings can be searched by MPAN or meter serial number. The list view displays reading details and the source filename.
 
-## Tests
 
-Run the complete test suite:
 
-```bash
-python manage.py test
-```
 
-Check the Django configuration:
+## What I Didn’t Have Time to Complete / Assumptions / Future Ideas
 
-```bash
-python manage.py check
-```
+### Assumptions
 
-## Implementation notes
+- **Timezone:** Django is configured with `USE_TZ = True` and `TIME_ZONE = "UTC"`. Reading timestamps are made timezone-aware using the configured timezone. The assumption that source timestamps represent UTC should be confirmed against the source system's conventions.
+- **Deduplication:** A database uniqueness constraint uses the source filename, MPAN, meter serial number, register ID, reading date, reading type and reading value. Re-importing the same file should not create duplicate records. Identical readings from different filenames can be stored separately.
+- **Ignored fields:** The importer currently focuses on fields required to search and review readings. Other D0010 fields are not persisted unless explicitly handled by the parser.
 
-The application uses Django models and migrations for persistence, a management command for file imports, and Django Admin for support staff to search readings.
+### Limitations and Future Ideas
 
-The import parser preserves empty fields when splitting pipe-delimited records, because field positions matter in the D0010 format.
+- **REST upload:** File imports are currently performed using a Django management command. A REST API upload endpoint has not been implemented.
+- **Parser coverage:** Expand support and tests for optional and conditional D0010 record types, and improve validation of malformed records.
+- **Import reporting:** Report created, skipped and invalid records more comprehensively.
+- **Testing:** Add regression tests for duplicate imports, malformed records and optional record types.
+- **Scalability:** Improve processing for larger files while preserving transaction safety and duplicate handling.
+- **Admin experience:** Add further filtering and date-range search options if required.
