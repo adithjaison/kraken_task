@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
@@ -5,6 +6,8 @@ from django.db import IntegrityError, transaction
 
 from readings.models import Reading
 from readings.services.parser import parse_d0010
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -17,31 +20,41 @@ class Command(BaseCommand):
             type=Path,
             help="Path to one or more D0010 files.",
         )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Validate files and report import counts without saving readings.",
+        )
 
     def handle(self, *args, **options):
         file_paths = options["files"]
+        dry_run = options["dry_run"]
 
-        # Validate every file before parsing or importing anything.
+        # Step 1: Check that all requested files exist.
         missing = [path for path in file_paths if not path.is_file()]
-        if missing:
-            raise CommandError(
-                "File not found: " + ", ".join(str(path) for path in missing)
-            )
 
-        # Parse every file before making database changes.
+        if missing:
+            message = "File not found: " + ", ".join(map(str, missing))
+            logger.error(message)
+            raise CommandError(message)
+
+        # Step 2: Parse every file before making any database changes.
         parsed_files = []
 
         for path in file_paths:
             try:
-                parsed_files.append((path, parse_d0010(path)))
+                parsed_file = parse_d0010(path)
+                parsed_files.append((path, parsed_file))
+
             except (ValueError, OSError) as exc:
+                logger.exception("Could not parse D0010 file %s", path)
                 raise CommandError(f"Could not import {path}: {exc}") from exc
 
         total_inserted = 0
         total_duplicates = 0
 
         try:
-            # All files are committed together or rolled back together.
+            # Step 3: Keep the database changes for the entire batch atomic.
             with transaction.atomic():
                 for path, parsed_file in parsed_files:
                     readings = [
@@ -58,11 +71,10 @@ class Command(BaseCommand):
                         for reading in group.readings
                     ]
 
-                    # Match the fields in the database uniqueness constraint.
+                    # The identity used for duplicate detection matches the
+                    # existing model's unique constraint, scoped by filename.
                     existing_keys = set(
-                        Reading.objects.filter(
-                            source_filename=path.name,
-                        ).values_list(
+                        Reading.objects.filter(source_filename=path.name).values_list(
                             "mpan",
                             "meter_serial_number",
                             "register_id",
@@ -93,31 +105,64 @@ class Command(BaseCommand):
                         new_readings.append(reading)
                         seen_keys.add(key)
 
-                    # Insert only readings not already present or repeated
-                    # within this file. The database constraint remains
-                    # the final protection against duplicate records.
-                    Reading.objects.bulk_create(new_readings)
-
                     inserted_count = len(new_readings)
+
+                    if dry_run:
+                        # Do not write anything to the database.
+                        self.stdout.write(
+                            f"{path.name}: would import "
+                            f"{inserted_count} new readings; "
+                            f"would skip {skipped_duplicates} duplicates."
+                        )
+                    else:
+                        Reading.objects.bulk_create(new_readings)
+
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                f"{path.name}: imported "
+                                f"{inserted_count} new readings; "
+                                f"skipped {skipped_duplicates} duplicates."
+                            )
+                        )
+
                     total_inserted += inserted_count
                     total_duplicates += skipped_duplicates
 
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f"{path.name}: imported {inserted_count} new "
-                            f"readings; skipped {skipped_duplicates} duplicates."
-                        )
-                    )
-
         except (IntegrityError, OSError) as exc:
+            logger.exception("D0010 import batch failed")
             raise CommandError(
                 f"Import failed; no files in this batch were committed: {exc}"
             ) from exc
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Import complete. Imported {total_inserted} new readings; "
-                f"skipped {total_duplicates} duplicates across "
-                f"{len(parsed_files)} file(s)."
+        # Step 4: Report the overall result.
+        if dry_run:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Dry run complete. Would import {total_inserted} new "
+                    f"readings; would skip {total_duplicates} duplicates "
+                    f"across {len(parsed_files)} file(s). "
+                    "No readings were saved."
+                )
             )
-        )
+            logger.info(
+                "D0010 dry run completed for %d file(s): "
+                "%d new readings, %d duplicates",
+                len(parsed_files),
+                total_inserted,
+                total_duplicates,
+            )
+        else:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Import complete. Imported {total_inserted} new "
+                    f"readings; skipped {total_duplicates} duplicates "
+                    f"across {len(parsed_files)} file(s)."
+                )
+            )
+            logger.info(
+                "D0010 import completed for %d file(s): "
+                "%d new readings, %d duplicates",
+                len(parsed_files),
+                total_inserted,
+                total_duplicates,
+            )
