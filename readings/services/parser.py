@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
+from django.utils import timezone
+
 
 @dataclass(frozen=True)
 class ReadingRecord:
@@ -113,7 +115,9 @@ def convert_group_readings(group: MpanGroup) -> list[ReadingRecord]:
                 mpan=group.mpan,
                 meter_serial_number=meter_serial_number,
                 register_id=record[1],
-                reading_date=datetime.strptime(record[2], "%Y%m%d%H%M%S"),
+                reading_date=timezone.make_aware(
+                    datetime.strptime(record[2], "%Y%m%d%H%M%S")
+                ),
                 reading_type=reading_type,
                 reading_value=Decimal(record[3]),
             )

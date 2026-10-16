@@ -43,20 +43,28 @@ class Command(BaseCommand):
                 ]
 
                 with transaction.atomic():
-                    Reading.objects.bulk_create(readings)
+                    before_count = Reading.objects.count()
+
+                    Reading.objects.bulk_create(
+                        readings,
+                        ignore_conflicts=True,
+                    )
+
+                    count = Reading.objects.count() - before_count
 
             except (ValueError, OSError) as exc:
                 raise CommandError(f"Could not import {file_path}: {exc}") from exc
 
-            count = len(readings)
             total_imported += count
 
             self.stdout.write(
-                self.style.SUCCESS(f"Imported {count} readings from {file_path.name}")
+                self.style.SUCCESS(
+                    f"Imported {count} new readings from {file_path.name}"
+                )
             )
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Import complete. Total readings imported: {total_imported}"
+                f"Import complete. Total new readings imported: {total_imported}"
             )
         )
