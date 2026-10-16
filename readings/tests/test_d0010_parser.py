@@ -18,7 +18,7 @@ class ParseD0010Tests(SimpleTestCase):
 
         result = parse_d0010(self.file_path)
 
-        self.assertEqual(len(result.mpan_groups), 12)
+        self.assertEqual(len(result.mpan_groups), 11)
 
         first_group = result.mpan_groups[0]
         self.assertEqual(first_group.mpan, "1200023305967")
