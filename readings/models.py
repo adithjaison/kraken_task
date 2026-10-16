@@ -12,6 +12,20 @@ class Reading(models.Model):
 
     class Meta:
         ordering = ["-reading_date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "source_filename",
+                    "mpan",
+                    "meter_serial_number",
+                    "register_id",
+                    "reading_date",
+                    "reading_type",
+                    "reading_value",
+                ],
+                name="unique_reading_per_source",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.mpan} - {self.reading_date} - {self.reading_value}"
